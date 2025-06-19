@@ -19,19 +19,19 @@ import { entitlementsByUserType } from '../../common/entitlements';
 import type { Session } from 'next-auth';
 
 export function ModelSelector({
-//   session,
+  //   session,
   selectedModelId,
   className,
 }: {
-//   session: Session;
+  //   session: Session;
   selectedModelId: string;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
 
-//   const userType = session.user.type;
-    const userType = 'guest';
+  //   const userType = session.user.type;
+  const userType = 'guest';
   const { availableChatModelIds } = entitlementsByUserType[userType];
 
   const availableChatModels = chatModels.filter((chatModel) =>
@@ -51,7 +51,7 @@ export function ModelSelector({
       <DropdownMenuTrigger
         asChild
         className={classname(
-          'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
+          'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground border border-zinc-400',
           className,
         )}
       >
@@ -64,7 +64,7 @@ export function ModelSelector({
           <ChevronDownIcon />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[300px]">
+      <DropdownMenuContent align="start" className="min-w-[300px] border border-zinc-400">
         {availableChatModels.map((chatModel) => {
           const { id } = chatModel;
 
@@ -77,7 +77,7 @@ export function ModelSelector({
 
                 startTransition(() => {
                   setOptimisticModelId(id);
-                //   saveChatModelAsCookie(id);
+                  //   saveChatModelAsCookie(id);
                 });
               }}
               data-active={id === optimisticModelId}

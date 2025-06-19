@@ -27,7 +27,7 @@ function PureGenerateChat({
                 <TooltipTrigger asChild>
                     <Button
                         variant="outline"
-                        className="order-2 md:order-1 md:px-2 px-2 md:h-fit ml-auto md:ml-0"
+                        className="order-2 md:order-1 md:px-2 px-2 md:h-fit ml-auto md:ml-0 border border-zinc-400"
                         onClick={() => {
                             setMessages([]);
                             router.push('/');

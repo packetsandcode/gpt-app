@@ -8,7 +8,7 @@ export default function Home() {
   const id = generateUUID();
   
   return (
-    <div className="transition-all duration-300 group-[.sidebar-wrapper]/sidebar-wrapper:data-[state=expanded]:ml-[var(--sidebar-width)] ml-0">
+    <div className="transition-all duration-300 group-[.sidebar-wrapper]/sidebar-wrapper:data-[state=expanded]:ml-[var(--sidebar-width)] ml-0 ">
       <Chat 
         id={id}
         initialMessages={[]}

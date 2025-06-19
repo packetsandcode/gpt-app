@@ -8,6 +8,7 @@ import type { UseChatHelpers } from '@ai-sdk/react';
 import { useMessages } from "@/app/hooks/use-messages";
 import { motion } from "framer-motion";
 import { useSharedData } from "@/app/context/sharedDataContext";
+import type { Vote } from "@/app/lib/db/schema";
 
 interface MessagesProps {
     chatId: string;
@@ -15,9 +16,12 @@ interface MessagesProps {
     messages: Array<UIMessage>;
     setMessages: UseChatHelpers['setMessages'];
     isReadonly: boolean;
+    className: string;
+    votes: Array<Vote> | undefined;
+    isArtifactVisible: boolean;
 }
 
-function PureMessages({ chatId, status, messages, setMessages, isReadonly }: MessagesProps) {
+function PureMessages({ chatId, status, messages, setMessages, isReadonly, className, votes }: MessagesProps) {
     const {
         hasSentMessage,
         endRef: messagesEndRef,
@@ -43,7 +47,7 @@ function PureMessages({ chatId, status, messages, setMessages, isReadonly }: Mes
         console.log("hhhhhhhhhhhhhhhhhhhhh", messages)
     }, [messages.length])
     return (
-        <div className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative mb-48">
+        <div className={`flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative ${className}`}>
             {messages.length === 0 && <Greetings />}
             {messages.map((msg, idx) => (
                 <PreviewMessage
@@ -52,9 +56,16 @@ function PureMessages({ chatId, status, messages, setMessages, isReadonly }: Mes
                     requiresScrollPadding={hasSentMessage && msg === messages[messages.length - 1]}
                     isLoading={status === 'streaming' && msg === messages[messages.length - 1]}
                     isReadonly={isReadonly}
+                    chatId={chatId}
+                    vote={
+                        votes
+                            ? votes.find((vote) => vote.messageId === msg.id)
+                            : undefined
+                    }
                 />
             ))}
-            {status === 'submitted' &&
+            {
+                // status === 'submitted' &&
                 messages.length > 0 &&
                 messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
 
@@ -68,6 +79,7 @@ function PureMessages({ chatId, status, messages, setMessages, isReadonly }: Mes
     )
 }
 export const Messages = memo(PureMessages, (prevProps, nextProps) => {
+    if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) return true;
     if (prevProps.messages.length !== nextProps.messages.length) return false;
     return true;
 })

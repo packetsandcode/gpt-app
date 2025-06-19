@@ -12,6 +12,11 @@ import { jwtDecode } from "jwt-decode";
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { Attachment, UIMessage } from "ai";
 import equal from "fast-deep-equal";
+import { useTheme } from "@/app/context/themeContext";
+import { ThemeToggle } from "../../common/toggle-theme";
+import { ChevronDown, Settings, LogOut, Moon, Sun } from 'lucide-react';
+import { useSidebar } from "@/app/components/common/sidebar";
+import { classname } from "../../common/utils";
 
 interface TokenPayload {
     email?: string;
@@ -34,6 +39,9 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
     const [name, setName] = useState<string | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const { theme, toggleTheme } = useTheme();
+    const [showSettings, setShowSettings] = useState(false);
+    const { open, setOpen } = useSidebar();
 
     useEffect(() => {
         const token = localStorage.getItem("firebase_jwt");
@@ -73,11 +81,12 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
         setEmail(null);
         setName(null);
         setMessages([]);
+        setOpen(false);
         router.push("/auth/login");
     };
 
     return (
-        <div className="w-100 flex justify-between">
+        <div className="w-100 flex justify-between border-b-1 border-zinc-200">
             <div className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
                 <SidebarToggle />
                 <GenerateChat
@@ -98,17 +107,17 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
                 />
             </div>
 
-            <div className="flex items-center p-4 relative" ref={dropdownRef}>
+            <div className={classname("flex items-center p-4 relative", open ? "right-[240px]" : "right-0")} ref={dropdownRef}>
                 {!isLoggedIn ? (
                     <>
                         <Button
-                            className="bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-zinc-50 dark:text-zinc-900 hidden md:flex py-1.5 px-2 h-fit md:h-[34px] order-4 md:ml-auto mx-2"
+                            className="bg-blue-600 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 hidden md:flex py-1.5 px-2 h-fit md:h-[34px] order-4 md:ml-auto mx-2"
                             onClick={() => router.push('/auth/login')}
                         >
                             Login
                         </Button>
                         <Button
-                            className="bg-zinc-200 dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-zinc-900 dark:text-zinc-900 hidden md:flex py-1.5 px-2 h-fit md:h-[34px] order-4 md:ml-auto"
+                            className="bg-indigo-600 dark:bg-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 hidden md:flex py-1.5 px-2 h-fit md:h-[34px] order-4 md:ml-auto"
                             onClick={() => router.push('/auth/signup')}
                         >
                             Register
@@ -118,18 +127,44 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
                     <div className="relative">
                         <Button
                             onClick={() => setShowDropdown((prev) => !prev)}
-                            className="bg-zinc-800 dark:bg-zinc-200 text-white dark:text-black py-1.5 px-3 h-fit md:h-[34px]"
+                            className="bg-green-600 dark:bg-zinc-200 text-white dark:text-black py-1.5 px-3 h-fit md:h-[34px] rounded-full hover:cursor-pointer"
                         >
-                            {name ?? 'User'}
+                            {name?.slice(0, 1) ?? 'User'}
                         </Button>
                         {showDropdown && (
                             <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-zinc-800 shadow-lg rounded-md z-50">
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-sm"
-                                >
-                                    Log Out
-                                </button>
+                                {!showSettings ? (
+                                    <>
+                                        <button
+                                            onClick={() => setShowSettings(true)}
+                                            className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-sm flex items-center gap-2"
+                                        >
+                                            <Settings size={16} /> Settings
+                                        </button>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-sm flex items-center gap-2"
+                                        >
+                                            <LogOut size={16} /> Log Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => setShowSettings(false)}
+                                            className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-sm"
+                                        >
+                                            ← Back
+                                        </button>
+                                        <button
+                                            onClick={toggleTheme}
+                                            className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-sm flex items-center gap-2"
+                                        >
+                                            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                                            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -142,6 +177,6 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
 export const ChatHeader = memo(PureChatHeader, (prevProps, nextProps) => {
     if (prevProps.messages !== nextProps.messages) return false;
     if (!equal(prevProps.selectedVisibilityType, nextProps.selectedVisibilityType)) return false;
-    if (!equal(prevProps.sessionId, nextProps.sessionId))   return false;
+    if (!equal(prevProps.sessionId, nextProps.sessionId)) return false;
     return true;
 });

@@ -12,12 +12,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useSharedData } from "@/app/context/sharedDataContext";
 import cx from 'classnames';
 import { MessageReasoning } from "./message-reasoning";
+import { MessageActions } from "./message-actions";
+import type { Vote } from "@/app/lib/db/schema";
 
-function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReadonly }: {
+function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReadonly, chatId, vote }: {
     message: UIMessage;
     requiresScrollPadding: boolean;
     isLoading: boolean;
     isReadonly: boolean;
+    chatId: string;
+    vote: Vote | undefined;
 }) {
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const { currentMessages } = useSharedData();
@@ -39,6 +43,13 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                             'group-data-[role=user]/message:w-fit': mode !== 'edit',
                         },
                     )}>
+                        {message.role === 'assistant' && (
+                            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+                                <div className="translate-y-px">
+                                    <SparklesIcon size={14} />
+                                </div>
+                            </div>
+                        )}
                         <div className={classname('flex flex-col gap-4 w-full')}>
                             {message.parts?.map((part, index) => {
                                 const { type } = part;
@@ -77,7 +88,7 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                                                 )}
                                                 <div data-testid="message-content"
                                                     className={classname('flex flex-col gap-4', {
-                                                        'bg-black text-white px-3 py-2 rounded-xl':
+                                                        'bg-zinc-200 text-black px-3 py-2 rounded-xl':
                                                             message.role === 'user',
                                                     })}>
                                                     <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
@@ -107,6 +118,15 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                                     )
                                 }
                             })}
+                            {!isReadonly && (
+                                <MessageActions
+                                    key={`action-${message.id}`}
+                                    chatId={chatId}
+                                    message={message}
+                                    vote={vote}
+                                    isLoading={isLoading}
+                                />
+                            )}
                         </div>
                     </div>
                 </motion.div>

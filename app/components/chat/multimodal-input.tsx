@@ -31,6 +31,7 @@ import { Button } from "../common/button";
 import { useScrollToBottom } from "@/app/hooks/use-scroll-to-bottom";
 import equal from "fast-deep-equal";
 import { saveChatSessionAndMessages } from "@/app/lib/chatStorage";
+import { StopButton } from "../common/button-stop";
 
 export type Message = {
     id: string;
@@ -38,7 +39,7 @@ export type Message = {
     content: string;
 };
 
-function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibilityType, className, handleSubmit, attachments, setAttachments, status, messages, setMessages, sessionId, setSessionId }: {
+function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibilityType, className, handleSubmit, attachments, setAttachments, status, messages, setMessages, sessionId, setSessionId, stop }: {
     chatId: string;
     append: UseChatHelpers['append'];
     selectedVisibilityType: VisibilityType;
@@ -53,6 +54,7 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
     setMessages: UseChatHelpers['setMessages'];
     sessionId?: string;
     setSessionId: Dispatch<SetStateAction<string | undefined>>;
+    stop: () => void;
 }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { width } = useWindowSize();
@@ -60,7 +62,7 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
     const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
     // const [input, setInput] = useState('');
     const [user, setUser] = useState<any>(null);
-
+    const [customStatus, setCustomStatus] = useState<'ready' | 'submitted'>('ready');
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -125,6 +127,7 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
         // handleSubmit(undefined, {
         //     experimental_attachments: attachments,
         // });
+        setCustomStatus('submitted');
 
         setAttachments([]);
         setLocalStorageInput('');
@@ -195,6 +198,8 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
         } catch (error) {
             console.error("Error sending message: ", error);
 
+        } finally {
+            setCustomStatus('ready');
         }
         // addDoc(collection(db, 'sessions', "c1mQ421fJ4LTPE6TSunl", 'messages'), {
         //     role: 'user',
@@ -226,8 +231,16 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
     useEffect(() => {
         console.log("123123123", messages)
     }, [messages])
+
+    useEffect(() => {
+        console.log("rrrrrrrrrrrrrrrr", status)
+    }, [status])
+
+    useEffect(() => {
+        console.log("IIIIIIIIIIIIIIIIIIIII", customStatus)
+    }, [customStatus])
     return (
-        <div className="relative w-full flex flex-col gap-4">
+        <div className={`relative w-full flex flex-col gap-4 ${className}`}>
             <AnimatePresence>
                 {!isAtBottom && (
                     <motion.div
@@ -239,7 +252,7 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
                     >
                         <Button
                             data-testid="scroll-to-bottom-button"
-                            className="rounded-full"
+                            className="rounded-full border border-zinc-300"
                             size="icon"
                             variant="outline"
                             onClick={(event) => {
@@ -252,15 +265,19 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
                     </motion.div>
                 )}
             </AnimatePresence>
-            {/* {messages.length === 0 &&
+            {messages.length === 0 &&
                 <SuggestedActions
                     chatId={chatId}
                     append={append}
                     selectedVisibilityType={selectedVisibilityType}
                     messages={messages}
                     setMessages={setMessages}
+                    customStatus={customStatus}
+                    setCustomStatus={setCustomStatus}
+                    sessionId={sessionId}
+                    setSessionId={setSessionId}
                 />
-            } */}
+            }
             <Textarea
                 data-testid="multimodal-input"
                 ref={textareaRef}
@@ -268,7 +285,7 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
                 value={input}
                 onChange={handleInput}
                 className={cx(
-                    'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
+                    'min-h-[24px] max-h-[240px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 border-t-4 border-transparent border-zinc-400 focus:ring-1 focus:ring-zinc-400 focus:outline-none',
                     className,
                 )}
                 rows={2}
@@ -296,11 +313,15 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
                 />
             </div>
             <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-                <SendButton
-                    input={input}
-                    submitForm={submitForm}
-                    uploadQueue={uploadQueue}
-                />
+                {customStatus === "submitted" ? (
+                    <StopButton setMessages={setMessages} stop={stop}></StopButton>
+                ) : (
+                    <SendButton
+                        input={input}
+                        submitForm={submitForm}
+                        uploadQueue={uploadQueue}
+                    />
+                )}
             </div>
         </div>
     )
@@ -312,6 +333,6 @@ export const MultimodalInput = memo(PureMultimodalInput, (prevProps, nextProps) 
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) return false;
     if (!equal(prevProps.attachments, nextProps.attachments)) return false;
     if (prevProps.messages !== nextProps.messages) return false;
-    if (!equal(prevProps.sessionId, nextProps.sessionId))   return false;
+    if (!equal(prevProps.sessionId, nextProps.sessionId)) return false;
     return true;
 });

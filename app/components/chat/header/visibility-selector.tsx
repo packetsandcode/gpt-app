@@ -64,7 +64,7 @@ export function VisibilitySelector({
       <DropdownMenuTrigger
         asChild
         className={classname(
-          'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
+          'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground border border-zinc-400',
           className,
         )}
       >
@@ -79,7 +79,7 @@ export function VisibilitySelector({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="min-w-[300px]">
+      <DropdownMenuContent align="start" className="min-w-[300px] border border-zinc-400">
         {visibilities.map((visibility) => (
           <DropdownMenuItem
             data-testid={`visibility-selector-item-${visibility.id}`}

@@ -16,6 +16,9 @@ import { getChatHistoryPaginationKey } from "./sidebar/sidebar-history";
 import { ChatSDKError } from "@/app/lib/errors";
 import { toast } from "./toast";
 import { useAuthGuard } from "@/app/hooks/useAuthGuard";
+import { fetcher } from "../common/utils";
+import type { Vote } from "@/app/lib/db/schema";
+import { useArtifactSelector } from "@/app/hooks/use-artifact";
 
 function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType, isReadonly }: {
     id: string;
@@ -28,10 +31,11 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
         chatId: id,
         initialVisibilityType,
     });
+
     const { mutate } = useSWRConfig();
     const [sessionId, setSessionId] = useState<string | undefined>(undefined);
-    
-    const { messages, setMessages, append, input, setInput, handleSubmit, status } = useChat({
+
+    const { messages, setMessages, append, input, setInput, handleSubmit, status, stop } = useChat({
         id,
         initialMessages,
         experimental_throttle: 100,
@@ -40,7 +44,7 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
         fetch: fetchWithErrorHandlers,
         experimental_prepareRequestBody: (body) => ({
             id,
-            message: body.messages,
+            message: body.messages.at(-1),
             selectedChatModel: initialChatModel,
             selectedVisibilityType: visibilityType,
         }),
@@ -64,25 +68,37 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
         console.log("yyyyyyyyyyyyyyyyyy", input)
         console.log('uuuuuuuuuuuuuuuuuuu', messages)
     }, [input, messages])
+
+    const { data: votes } = useSWR<Array<Vote>>(
+        messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
+        fetcher,
+    );
+
+    const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
+
     return (
-            <div className="">
-                <ChatHeader
-                    chatId={id}
-                    selectedModelId={initialChatModel}
-                    selectedVisibilityType={initialVisibilityType}
-                    messages={messages}
-                    setMessages={setMessages}
-                    sessionId={sessionId}
-                    setSessionId={setSessionId}
-                />
+        <div className="flex flex-col h-screen w-screen overflow-hidden">
+            <ChatHeader
+                chatId={id}
+                selectedModelId={initialChatModel}
+                selectedVisibilityType={initialVisibilityType}
+                messages={messages}
+                setMessages={setMessages}
+                sessionId={sessionId}
+                setSessionId={setSessionId}
+            />
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 <Messages
                     chatId={id}
                     status={status}
                     messages={messages}
                     setMessages={setMessages}
                     isReadonly={isReadonly}
+                    className="flex-1 overflow-y-auto"
+                    votes={votes}
+                    isArtifactVisible={isArtifactVisible}
                 />
-                <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+                <form className="relative w-full px-4 pb-4 md:pb-6 max-w-3xl mx-auto">
                     <MultimodalInput
                         chatId={id}
                         append={append}
@@ -97,9 +113,12 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
                         setMessages={setMessages}
                         sessionId={sessionId}
                         setSessionId={setSessionId}
+                        stop={stop}
+                        className=""
                     />
                 </form>
             </div>
+        </div>
     )
 }
 

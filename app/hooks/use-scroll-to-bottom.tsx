@@ -1,11 +1,13 @@
 import useSWR from 'swr';
 import { useRef, useEffect, useCallback } from 'react';
+import { useSidebar } from '../components/common/sidebar';
 
 type ScrollFlag = ScrollBehavior | false;
 
 export function useScrollToBottom() {
   const containerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const { open, setOpen } = useSidebar();
 
   const { data: isAtBottom = false, mutate: setIsAtBottom } = useSWR(
     'messages:is-at-bottom',
@@ -26,6 +28,7 @@ export function useScrollToBottom() {
   const scrollToBottom = useCallback(
     (scrollBehavior: ScrollBehavior = 'smooth') => {
       setScrollBehavior(scrollBehavior);
+      // setOpen(false);
     },
     [setScrollBehavior],
   );

@@ -10,7 +10,7 @@ function PureSendButton({ submitForm, input, uploadQueue }: {
     return (
         <Button
             data-testid="send-button"
-            className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
+            className="rounded-full p-1.5 h-fit"
             onClick={(event) => {
                 event.preventDefault();
                 submitForm();

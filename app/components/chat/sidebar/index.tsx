@@ -13,7 +13,7 @@ export function SidebarPage() {
     const { open } = useSidebar();
     const { sessions } = useUserSessions();
     const { setCurrentSessionId, setCurrentMessages } = useSharedData();
-
+    
     const handleClick = async (sessionId: string) => {
         setCurrentSessionId(sessionId);
 
@@ -39,22 +39,21 @@ export function SidebarPage() {
     return (
         <div
             className={classname(
-                "transition-all duration-300 ease-in-out overflow-hidden h-auto",
-                open ? "w-[240px]" : "w-0"
+                "transition-all duration-300 ease-in-out overflow-hidden h-full",
+                open ? "w-[240px] flex-1" : "w-0 flex-1"
             )}
-        >
-            <div className="h-screen bg-zinc-100 dark:bg-zinc-900 shadow-md flex flex-col">
-                <p className="text-xl font-bold p-4 pb-2">Chatbot</p>
-
+        >   
+            <div className="h-screen bg-zinc-500/5 shadow-md flex flex-col border-r-1 border-zinc-200">
+                <p className="text-xl font-semi-bold p-4">Chat History</p>
                 {/* Scrollable area */}
-                <div className="flex-1 overflow-y-auto px-4 space-y-1">
+                <div className="flex-1 overflow-y-auto px-4 space-y-1 light-scrollbar mt-4">
                     {sessions.map((session) => (
                         <div
                             key={session.id}
                             onClick={() => handleClick(session.id)}
                             className="cursor-pointer py-2 rounded-2xl hover:bg-gray-100 transition-all"
                         >
-                            <div className="text-sm font-semibold text-gray-800">
+                            <div className="text-sm text-gray-800">
                                 {session.messages?.[0]?.title
                                     ? session.messages[0].title.length > 25
                                         ? session.messages[0].title.slice(0, 25) + "..."

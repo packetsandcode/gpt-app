@@ -7,7 +7,11 @@ module.exports = {
     ],
     darkMode: 'class', // ✅ Important for dark mode toggle
     theme: {
-        extend: {},
+        extend: {
+            boxShadow: {
+                'custom': '0 2px 8px rgba(0, 0, 0, 0.15)',
+            },
+        },
     },
     plugins: [],
 }

@@ -88,7 +88,7 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                                                 )}
                                                 <div data-testid="message-content"
                                                     className={classname('flex flex-col gap-4', {
-                                                        'bg-zinc-200 text-black px-3 py-2 rounded-xl':
+                                                        'bg-gray-200 text-black px-3 py-2 rounded-xl':
                                                             message.role === 'user',
                                                     })}>
                                                     <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
@@ -161,10 +161,10 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                                     )}
                                     <div data-testid="message-content"
                                         className={classname('flex flex-col gap-4 w-full', {
-                                            'bg-black text-white px-3 py-2 rounded-xl':
+                                            'bg-gray-200 text-black px-3 py-2 rounded-xl':
                                                 message.role === 'user',
                                         })}>
-                                        <div className="font-semibold text-lg text-right rounded-xl text-white bg-black px-3 py-2 self-end">
+                                        <div className="text-lg text-right rounded-xl bg-gray-200 text-black px-3 py-2 self-end">
                                             <p>{(message as any).title ?? 'Untitled'}</p>
                                         </div>
                                         <Markdown>{sanitizeText((message as any).text || (message as any).text || '')}</Markdown>

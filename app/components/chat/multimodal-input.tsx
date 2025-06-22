@@ -285,7 +285,7 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
                 value={input}
                 onChange={handleInput}
                 className={cx(
-                    'min-h-[24px] max-h-[240px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 border-t-4 border-transparent border-zinc-400 focus:ring-1 focus:ring-zinc-400 focus:outline-none',
+                    'min-h-[24px] max-h-[240px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 border-t-6 border-gray-300 shadow-custom focus:ring-1 focus:ring-zinc-400 focus:outline-none',
                     className,
                 )}
                 rows={2}

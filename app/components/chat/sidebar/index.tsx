@@ -44,7 +44,7 @@ export function SidebarPage() {
             )}
         >   
             <div className="h-screen bg-zinc-500/5 shadow-md flex flex-col border-r-1 border-zinc-200">
-                <p className="text-xl font-semi-bold p-4">Chat History</p>
+                <p className="text-xl font-semi-bold p-4">Recent</p>
                 {/* Scrollable area */}
                 <div className="flex-1 overflow-y-auto px-4 space-y-1 light-scrollbar mt-4">
                     {sessions.map((session) => (

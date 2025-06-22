@@ -28,7 +28,7 @@ export function useScrollToBottom() {
   const scrollToBottom = useCallback(
     (scrollBehavior: ScrollBehavior = 'smooth') => {
       setScrollBehavior(scrollBehavior);
-      // setOpen(false);
+      setOpen(false);
     },
     [setScrollBehavior],
   );

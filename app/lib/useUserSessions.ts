@@ -1,66 +1,72 @@
 import { useEffect, useState } from "react";
-import { db, auth } from "@/app/lib/firebaseClient";
-import {
-    collection,
-    query,
-    where,
-    getDocs,
-    orderBy,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { supabase } from "@/app/lib/supabaseClient";
 
 export const useUserSessions = () => {
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const sessionQuery = query(
-                        collection(db, "sessions"),
-                        where("email", "==", user.email)
-                    );
-                    const sessionSnapshot = await getDocs(sessionQuery);
+        const fetchSessions = async () => {
+            const {
+                data: { user },
+                error: authError
+            } = await supabase.auth.getUser();
 
-                    const sessionPromises = sessionSnapshot.docs.map(async (sessionDoc) => {
-                        const sessionId = sessionDoc.id;
-                        const sessionData = sessionDoc.data();
-
-                        const messagesQuery = query(
-                            collection(db, "sessions", sessionId, "messages"),
-                            orderBy("createdAt", "asc")
-                        );
-                        const messagesSnapshot = await getDocs(messagesQuery);
-
-                        const messages = messagesSnapshot.docs.map((msgDoc) => ({
-                            id: msgDoc.id,
-                            ...msgDoc.data(),
-                        }));
-
-                        return {
-                            id: sessionId,
-                            ...sessionData,
-                            messages,
-                        };
-                    });
-
-                    const sessionsWithMessages = await Promise.all(sessionPromises);
-                    setSessions(sessionsWithMessages);
-                } catch (error) {
-                    console.error("Error loading sessions and messages:", error);
-                }
+            if (authError || !user) {
+                console.error("Auth error or no user:", authError);
+                setLoading(false);
+                return;
             }
 
-            setLoading(false);
-        });
+            try {
+                const { data: sessionsData, error: sessionError } = await supabase
+                    .from("sessions")
+                    .select("id, user_id")
+                    .eq("user_id", user.id);
 
-        return () => unsubscribe();
+                if (sessionError) {
+                    console.error("Error fetching sessions:", sessionError);
+                    setLoading(false);
+                    return;
+                }
+
+                const sessionsWithMessages = await Promise.all(
+                    (sessionsData || []).map(async (session) => {
+                        const { data: messages, error: msgError } = await supabase
+                            .from("messages")
+                            .select("*")
+                            .eq("session_id", session.id)
+                            .order("created_at", { ascending: true });
+
+                        if (msgError) {
+                            console.error(`Error loading messages for session ${session.id}:`, msgError);
+                            return {
+                                ...session,
+                                messages: [],
+                            };
+                        }
+
+                        return {
+                            ...session,
+                            messages,
+                        };
+                    })
+                );
+
+                setSessions(sessionsWithMessages);
+            } catch (error) {
+                console.error("Error loading sessions and messages:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSessions();
     }, []);
 
     useEffect(() => {
-        console.log('pppppppppppppppp', sessions)
-    }, [sessions])
-    
+        console.log('Loaded sessions:', sessions);
+    }, [sessions]);
+
     return { sessions, loading };
 };

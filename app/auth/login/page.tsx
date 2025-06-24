@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/app/lib/firebaseClient";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { supabase } from "@/app/lib/supabaseClient";
 import "../index.css";
 import { useAuthGuard } from "@/app/hooks/useAuthGuard";
 
@@ -21,19 +22,27 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            // Sign in using email and password
+            const { data, error: loginError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
 
-            await user.reload(); // refresh info (e.g. emailVerified)
-            if (!user.emailVerified) {
-                alert("Please verify your email before signing in.");
-                await auth.signOut();
-                return;
+            if (loginError) throw loginError
+
+            // Optional: Require verified email (if email confirmation is enabled in Supabase)
+            const user = data.user
+            if (!user?.email_confirmed_at) {
+                await supabase.auth.signOut()
+                alert('Please verify your email before signing in.')
+                return
             }
 
-            const token = await user.getIdToken(); // <-- JWT token here
-
-            localStorage.setItem("firebase_jwt", token);
+            // Optionally store session token
+            const session = data.session
+            if (session?.access_token) {
+                localStorage.setItem('supabase_token', session.access_token)
+            }
 
             router.push('/');
             // Proceed to app/dashboard
@@ -43,7 +52,7 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
-    
+
     useAuthGuard();
 
     return (

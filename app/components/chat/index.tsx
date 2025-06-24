@@ -19,6 +19,7 @@ import { useAuthGuard } from "@/app/hooks/useAuthGuard";
 import { fetcher } from "../common/utils";
 import type { Vote } from "@/app/lib/db/schema";
 import { useArtifactSelector } from "@/app/hooks/use-artifact";
+import { useSharedData } from "@/app/context/sharedDataContext";
 
 function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType, isReadonly }: {
     id: string;
@@ -60,14 +61,16 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
             }
         },
     });
-    const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+    // const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+    const { attachments, setAttachments } = useSharedData();
 
     useAuthGuard();
 
     useEffect(() => {
         console.log("yyyyyyyyyyyyyyyyyy", input)
         console.log('uuuuuuuuuuuuuuuuuuu', messages)
-    }, [input, messages])
+        console.log("OOOOOOOOOOOOOOOOOO", attachments)
+    }, [input, messages, attachments.length])
 
     const { data: votes } = useSWR<Array<Vote>>(
         messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
@@ -106,8 +109,6 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
                         input={input}
                         setInput={setInput}
                         handleSubmit={handleSubmit}
-                        attachments={attachments}
-                        setAttachments={setAttachments}
                         status={status}
                         messages={messages}
                         setMessages={setMessages}

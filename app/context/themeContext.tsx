@@ -13,28 +13,35 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const [theme, setTheme] = useState<Theme>('light');
+    const applyTheme = (theme: Theme) => {
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+
+        // Optional: If using CSS variables, manually override them
+        const root = document.documentElement;
+
+        if (theme === 'dark') {
+            root.style.setProperty('--background', '#0a0a0a');
+            root.style.setProperty('--foreground', '#ededed');
+        } else {
+            root.style.setProperty('--background', '#ffffff');
+            root.style.setProperty('--foreground', '#171717');
+        }
+    };
 
     useEffect(() => {
         const stored = localStorage.getItem('theme') as Theme | null;
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const initialTheme = stored || (prefersDark ? 'dark' : 'light');
-        document.documentElement.classList.add('transition-none');
-        setTimeout(() => {
-            document.documentElement.classList.remove('transition-none');
-        }, 0);
         setTheme(initialTheme);
-        document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+        applyTheme(initialTheme);
     }, []);
 
     const toggleTheme = () => {
         const nextTheme = theme === 'light' ? 'dark' : 'light';
-        document.documentElement.classList.add('transition-none');
-        setTimeout(() => {
-            document.documentElement.classList.remove('transition-none');
-        }, 0);
         setTheme(nextTheme);
         localStorage.setItem('theme', nextTheme);
-        document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+        applyTheme(nextTheme);
     };
 
     return (

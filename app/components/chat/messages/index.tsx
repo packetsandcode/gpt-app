@@ -1,7 +1,8 @@
 'use client';
 
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import type { UIMessage } from 'ai';
+import { Attachment } from "ai"
 import { Greetings } from "./greetings";
 import { PreviewMessage, ThinkingMessage } from "./preview";
 import type { UseChatHelpers } from '@ai-sdk/react';
@@ -9,6 +10,7 @@ import { useMessages } from "@/app/hooks/use-messages";
 import { motion } from "framer-motion";
 import { useSharedData } from "@/app/context/sharedDataContext";
 import type { Vote } from "@/app/lib/db/schema";
+import equal from "fast-deep-equal";
 
 interface MessagesProps {
     chatId: string;
@@ -31,7 +33,7 @@ function PureMessages({ chatId, status, messages, setMessages, isReadonly, class
         chatId,
         status
     });
-    const { currentMessages } = useSharedData();
+    const { currentMessages, attachments, setAttachments } = useSharedData();
     const [currentMsgs, setCurrentMsgs] = useState<any[]>([]);
 
     useEffect(() => {

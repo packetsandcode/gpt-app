@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { UIMessage } from "ai";
+import { Attachment } from "ai";
 import { memo } from "react";
 import equal from 'fast-deep-equal';
 import { classname, sanitizeText } from "../../common/utils";
@@ -14,9 +15,10 @@ import cx from 'classnames';
 import { MessageReasoning } from "./message-reasoning";
 import { MessageActions } from "./message-actions";
 import type { Vote } from "@/app/lib/db/schema";
+import { PreviewAttachment } from "../../common/preview-attachment";
 
 function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReadonly, chatId, vote }: {
-    message: UIMessage;
+    message: UIMessage & { attachments?: Attachment[] };
     requiresScrollPadding: boolean;
     isLoading: boolean;
     isReadonly: boolean;
@@ -24,30 +26,60 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
     vote: Vote | undefined;
 }) {
     const [mode, setMode] = useState<'view' | 'edit'>('view');
-    const { currentMessages } = useSharedData();
+    const { currentMessages, attachments, secondAttachments } = useSharedData();
 
+    useEffect(() => {
+        console.log("PPPPPPPPPPPPPPPPPPPPP", message, attachments)
+    })
     return (
         <AnimatePresence>
-            {message.parts.length !== 0 ? (
-                <motion.div
-                    data-testid={`message-${message.role}`}
-                    className="w-full mx-auto max-w-3xl px-4 group/message"
-                    initial={{ y: 5, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    data-role={message.role}
-                >
-                    <div className={classname(
-                        'flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl',
-                        {
-                            'w-full': mode === 'edit',
-                            'group-data-[role=user]/message:w-fit': mode !== 'edit',
-                        },
-                    )}>
-                        {message.role === 'assistant' && (
-                            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
-                                <div className="translate-y-px">
-                                    <SparklesIcon size={14} />
-                                </div>
+            <motion.div
+                data-testid={`message-${message.role}`}
+                className="w-full mx-auto max-w-3xl px-4 group/message"
+                initial={{ y: 5, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                data-role={message.role}
+            >
+                <div className={classname(
+                    'flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl',
+                    {
+                        'w-full': mode === 'edit',
+                        'group-data-[role=user]/message:w-fit': mode !== 'edit',
+                    },
+                )}>
+                    {message.role === 'assistant' && (
+                        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+                            <div className="translate-y-px">
+                                <SparklesIcon size={14} />
+                            </div>
+                        </div>
+                    )}
+                    <div
+                        className={classname('flex flex-col gap-4 w-full')}
+                    >
+                        {message.role === 'assistant' ? (
+                            <div
+                                data-testid={`message-attachments`}
+                                className='flex flex-row justify-end gap-2'
+                            >
+                                {message.attachments?.map((attachment) => (
+                                    <PreviewAttachment
+                                        key={attachment.url}
+                                        attachment={attachment}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div
+                                data-testid={`message-attachments`}
+                                className='flex flex-row justify-end gap-2'
+                            >
+                                {attachments?.map((attachment) => (
+                                    <PreviewAttachment
+                                        key={attachment.url}
+                                        attachment={attachment}
+                                    />
+                                ))}
                             </div>
                         )}
                         <div className={classname('flex flex-col gap-4 w-full')}>
@@ -91,10 +123,18 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                                                         'bg-gray-200 text-black px-3 py-2 rounded-xl':
                                                             message.role === 'user',
                                                     })}>
+                                                    {(message as any).title && (
+                                                        <div className="text-lg text-right rounded-xl bg-gray-200 text-black px-3 py-2 self-end">
+                                                            <p>{(message as any).title ?? 'Untitled'}</p>
+                                                        </div>
+                                                    )}
                                                     <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
                                                 </div>
                                             </div>
                                         )
+                                    }
+                                    if (mode === 'edit') {
+                                        
                                     }
                                 }
 
@@ -129,54 +169,8 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                             )}
                         </div>
                     </div>
-                </motion.div>
-            ) : (
-                <motion.div
-                    key={message.id}
-                    data-testid={`message-firestore`}
-                    className="w-full mx-auto max-w-3xl px-4 group/message"
-                    initial={{ y: 5, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                >
-                    <div className="flex gap-4 w-full">
-                        <div className="flex flex-col gap-4 w-full">
-                            <div className="flex flex-row gap-2 items-start w-full">
-                                <div key={message.id} className="flex flex-row gap-2 items-start w-full">
-                                    {!isReadonly && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    data-testid="message-edit-button"
-                                                    variant="ghost"
-                                                    className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
-                                                    onClick={() => {
-                                                        setMode('edit');
-                                                    }}
-                                                >
-                                                    <PencilEditIcon />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Edit message</TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                    <div data-testid="message-content"
-                                        className={classname('flex flex-col gap-4 w-full', {
-                                            'bg-gray-200 text-black px-3 py-2 rounded-xl':
-                                                message.role === 'user',
-                                        })}>
-                                        <div className="text-lg text-right rounded-xl bg-gray-200 text-black px-3 py-2 self-end">
-                                            <p>{(message as any).title ?? 'Untitled'}</p>
-                                        </div>
-                                        <Markdown>{sanitizeText((message as any).text || (message as any).text || '')}</Markdown>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-
-
-            )}
+                </div>
+            </motion.div>
         </AnimatePresence>
 
     )
@@ -187,6 +181,7 @@ export const PreviewMessage = memo(PurePreviewMessage, (prevProps, nextProps) =>
     if (prevProps.message.id !== nextProps.message.id) return false;
     if (!equal(prevProps.message.content, nextProps.message.content)) return false;
     if (!equal(prevProps.message.parts, nextProps.message.parts)) return false;
+    if (!equal(prevProps.message.attachments, prevProps.message.attachments)) return false;
     return true;
 })
 

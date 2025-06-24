@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/app/lib/firebaseClient";
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
+import { supabase } from "@/app/lib/supabaseClient";
 import "../index.css";
 
 export default function SignUpPage() {
@@ -21,17 +22,25 @@ export default function SignUpPage() {
         setError('');
 
         try {
-            // Create user account
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            // Create user with Supabase email+password
+            const { data, error: signUpError } = await supabase.auth.signUp({
+                email,
+                password,
+            })
 
-            // Update displayName with user's name
-            await updateProfile(user, { displayName: name });
+            if (signUpError) throw signUpError
 
-            // Send verification email
-            await sendEmailVerification(user);
+            // Optionally, store the name in a separate profile table
+            const userId = data.user?.id
+            if (userId) {
+                const { error: profileError } = await supabase.from('profiles').insert([
+                    { id: userId, name },
+                ])
 
-            alert("Verification email sent! Please check your inbox.");
+                if (profileError) throw profileError
+            }
+
+            alert('Account created! Please check your email for verification.')
             router.push('/auth/verify-email');
         } catch (err: any) {
             setError(err.message);

@@ -10,7 +10,7 @@ import { sendMessageToGemini } from '@/app/lib/gemini';
 import { useRouter } from 'next/navigation';
 import { db, auth } from '@/app/lib/firebaseClient';
 import { onAuthStateChanged } from 'firebase/auth';
-import { saveChatSessionAndMessages } from "@/app/lib/chatStorage";
+import { supabase } from '@/app/lib/supabaseClient';
 
 type CustomStatus = 'ready' | 'submitted';
 interface SuggestedActionsProps {
@@ -30,6 +30,35 @@ export type Message = {
     role: 'user' | 'assistant' | 'system' | 'data';
     content: string;
 };
+
+export async function saveChatSessionAndMessages({ email, userId, title, assistantResponse, sessionId }: {
+    email: string,
+    userId: string,
+    title: string,
+    assistantResponse: string,
+    sessionId?: string,
+}) {
+    if (!sessionId) {
+        const { data, error } = await supabase.from('sessions').insert({
+            email,
+            user_id: userId,
+            created_at: new Date().toISOString(),
+        }).select().single()
+        if (error) throw error
+        sessionId = data.id
+    }
+    const { error: messageError } = await supabase.from('messages').insert([
+        {
+            session_id: sessionId,
+            role: 'assistant',
+            content: assistantResponse,
+            title,
+            created_at: new Date().toISOString(),
+        },
+    ])
+    if (messageError) throw messageError
+    return sessionId
+}
 
 function PureSuggestedActions({
     chatId,
@@ -67,12 +96,15 @@ function PureSuggestedActions({
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
 
+    // useEffect(() => {
+    //     const unsubscribe = onAuthStateChanged(auth, (user) => {
+    //         setUser(user);
+    //     });
+    //     return unsubscribe;
+    // }, []);
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
-        });
-        return unsubscribe;
-    }, []);
+        supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    }, [])
 
     const submitForm = useCallback(async (suggestedAction: typeof suggestedActions[0]) => {
         if (!suggestedAction.action.trim()) return;
@@ -123,7 +155,7 @@ function PureSuggestedActions({
                     content: response,
                 },
             ];
-            console.log("eeeeeeeeeeeeeeeeeee", chatMessagesForFirestore);
+            console.log("eeeeeeeeeeeeeeeeeee", chatMessagesForFirestore, user);
 
             // Use first 40 chars of input as title
             const title = suggestedAction.action.slice(0, 40);
@@ -131,12 +163,18 @@ function PureSuggestedActions({
             // Save session and messages to Firestore
             const newSessionId = await saveChatSessionAndMessages({
                 email: user.email ?? "",
-                userId: user.uid,
+                userId: user.id,
                 title: suggestedAction.action,                     // user input
                 assistantResponse: response,      // assistant response
                 sessionId: sessionId ?? undefined,
             });
 
+            console.log("Inserting session with:", {
+                user_id: user?.id,
+                created_at: new Date().toISOString()
+            });
+
+            console.log("JJJJJJJJJJJJJJJJJ", newSessionId)
             // Save sessionId in state for future appends
             setSessionId(newSessionId);
         } catch (error) {
@@ -178,7 +216,7 @@ function PureSuggestedActions({
                             submitForm(suggestedAction);
                         }}
 
-                        className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:cursor-pointer"
+                        className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:cursor-pointer border border-zinc-400 dark:bg-zinc-900"
                     >
                         <span className="font-medium">{suggestedAction.title}</span>
                         <span className="text-muted-foreground">

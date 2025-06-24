@@ -1,45 +1,115 @@
+// file: app/components/chat/multimodal-input.tsx
 'use client'
 
-import { memo, useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
-import type { UseChatHelpers } from '@ai-sdk/react';
-import { SuggestedActions } from "./suggest";
-import { VisibilityType } from "./header/visibility-selector";
-import { Textarea } from "../common/textarea";
-import cx from 'classnames';
-import { toast } from 'sonner';
-import { Attachment, UIMessage } from "ai";
-import { useLocalStorage, useWindowSize } from 'usehooks-ts';
-import { AttachmentsButton } from "../common/button-attach";
-import { SendButton } from "../common/button-send";
-import {
-    collection,
-    doc,
-    setDoc,
-    addDoc,
-    query,
-    orderBy,
-    onSnapshot,
-    serverTimestamp,
-} from 'firebase/firestore';
-import { db, auth } from '@/app/lib/firebaseClient';
-import { onAuthStateChanged } from 'firebase/auth';
-import { sendMessageToOpenAI } from "@/app/lib/openai";
-import { sendMessageToGemini } from "@/app/lib/gemini";
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown } from 'lucide-react';
-import { Button } from "../common/button";
-import { useScrollToBottom } from "@/app/hooks/use-scroll-to-bottom";
-import equal from "fast-deep-equal";
-import { saveChatSessionAndMessages } from "@/app/lib/chatStorage";
-import { StopButton } from "../common/button-stop";
+import { memo, useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction, type ChangeEvent } from "react"
+import type { UseChatHelpers } from '@ai-sdk/react'
+import { SuggestedActions } from "./suggest"
+import { VisibilityType } from "./header/visibility-selector"
+import { Textarea } from "../common/textarea"
+import cx from 'classnames'
+import { toast } from 'sonner'
+import { Attachment, UIMessage } from "ai"
+import { useLocalStorage, useWindowSize } from 'usehooks-ts'
+import { AttachmentsButton } from "../common/button-attach"
+import { SendButton } from "../common/button-send"
+import { supabase } from '@/app/lib/supabaseClient'
+import { sendMessageToGemini } from "@/app/lib/gemini"
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowDown } from 'lucide-react'
+import { Button } from "../common/button"
+import { useScrollToBottom } from "@/app/hooks/use-scroll-to-bottom"
+import equal from "fast-deep-equal"
+import { StopButton } from "../common/button-stop"
+import { PreviewAttachment } from "../common/preview-attachment"
+import { useSharedData } from "@/app/context/sharedDataContext"
 
 export type Message = {
     id: string;
     role: 'user' | 'assistant' | 'system' | 'data';
     content: string;
+    attachments?: Array<Attachment>;
+}
+
+// Add base64 conversion helper:
+const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+
+
+export const uploadFileToSupabase = async (file: File) => {
+    const filePath = `${Date.now()}-${file.name}`;
+
+    const { data, error } = await supabase.storage
+        .from('uploads') // <- make sure this is your exact bucket name
+        .upload(filePath, file, {
+            upsert: false,
+        });
+
+    if (error) {
+        console.error("Upload error:", error.message);
+        throw error;
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath);
+
+
+    // get base64 for embedding in Gemini request
+    const base64 = await fileToBase64(file);
+
+    return {
+        url: publicUrlData.publicUrl,
+        name: file.name,
+        contentType: file.type,
+        base64,
+    };
 };
 
-function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibilityType, className, handleSubmit, attachments, setAttachments, status, messages, setMessages, sessionId, setSessionId, stop }: {
+
+export async function saveChatSessionAndMessages({ email, userId, title, assistantResponse, attachedFiles, sessionId }: {
+    email: string,
+    userId: string,
+    title: string,
+    assistantResponse: string,
+    sessionId?: string,
+    attachedFiles?: Array<Attachment>,
+}) {
+    if (!sessionId) {
+        const { data, error } = await supabase.from('sessions').insert({
+            email,
+            user_id: userId,
+            created_at: new Date().toISOString(),
+        }).select().single()
+        if (error) throw error
+        sessionId = data.id
+    }
+    const { error: messageError } = await supabase.from('messages').insert([
+        {
+            session_id: sessionId,
+            role: 'assistant',
+            content: assistantResponse,
+            title,
+            attachments: attachedFiles?.length
+                ? attachedFiles.map(f => ({
+                    url: f.url,
+                    contentType: f.contentType,
+                    name: f.name,
+                }))
+                : null,
+            created_at: new Date().toISOString(),
+        },
+    ])
+    if (messageError) throw messageError
+    return sessionId
+}
+
+function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibilityType, className, handleSubmit, status, messages, setMessages, sessionId, setSessionId, stop }: {
     chatId: string;
     append: UseChatHelpers['append'];
     selectedVisibilityType: VisibilityType;
@@ -47,8 +117,6 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
     setInput: UseChatHelpers['setInput'];
     className?: string;
     handleSubmit: UseChatHelpers['handleSubmit'];
-    attachments: Array<Attachment>;
-    setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
     status: UseChatHelpers['status'];
     messages: Array<UIMessage>;
     setMessages: UseChatHelpers['setMessages'];
@@ -60,279 +128,215 @@ function PureMultimodalInput({ chatId, append, input, setInput, selectedVisibili
     const { width } = useWindowSize();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
-    // const [input, setInput] = useState('');
     const [user, setUser] = useState<any>(null);
     const [customStatus, setCustomStatus] = useState<'ready' | 'submitted'>('ready');
+    const [localStorageInput, setLocalStorageInput] = useLocalStorage('input', '')
+    const [attachedFiles, setAttachedFiles] = useState<Array<Attachment>>([]);
+    const { attachments, setAttachments } = useSharedData();
 
     useEffect(() => {
-        if (textareaRef.current) {
-            adjustHeight();
-        }
-    }, []);
+        if (!input) setInput(localStorageInput || '')
+        supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    }, [])
 
-    const adjustHeight = () => {
+    useEffect(() => {
+        setLocalStorageInput(input);
+    }, [input])
+
+    const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setInput(event.target.value);
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
         }
-    };
-
-    const [localStorageInput, setLocalStorageInput] = useLocalStorage(
-        'input',
-        '',
-    );
-
-    const resetHeight = () => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = '98px';
-        }
-    };
-
-    useEffect(() => {
-        if (!input) {
-            const finalValue = localStorageInput || '';
-            setInput(finalValue);
-        }
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
-        });
-        return unsubscribe;
-    }, []);
-
-    useEffect(() => {
-        setLocalStorageInput(input);
-    }, [input, setLocalStorageInput]);
-
-    const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const value = event.target.value;
-        setInput(value);
-        adjustHeight();
-    };
+    }
 
     const submitForm = useCallback(async () => {
-        console.log("eeeeeeeeeeeeee")
         if (!input.trim()) return;
         window.history.replaceState({}, '', `/chat/${chatId}`);
 
         const userMessage: Message = {
             id: `${Date.now()}-user`,
-            role: 'user', // typed correctly as "user"
+            role: 'user',
             content: input,
         };
-
-        const optimisticMessages = [...messages, userMessage];
-        setMessages(optimisticMessages);
-
+        setMessages([...messages, userMessage]);
+        setCustomStatus('submitted');
         // handleSubmit(undefined, {
         //     experimental_attachments: attachments,
         // });
-        setCustomStatus('submitted');
-
         setAttachments([]);
-        setLocalStorageInput('');
-        resetHeight();
+        setAttachedFiles([]);
         setInput('');
-
-        if (width && width > 768) {
-            textareaRef.current?.focus();
-        }
-
+        setLocalStorageInput('');
         try {
-            // await addDoc(collection(db, 'sessions'), {
-            //     email: user.email,
-            //     title: input,
-            //     userId: user.uid,
-            // });
+            // Convert existing mess    ages to Gemini format
+            const formattedMessages = messages.map((m) => ({
+                role: m.role,
+                parts: [{ text: m.content }] as ({ text: string } | { inlineData: { mimeType: string; data: string } })[]
+            }))
 
-            const formattedMessages = Array.isArray(messages)
-                ? messages.map((m) => ({
-                    role: m.role,
-                    parts: [{ text: m.content }],
-                }))
-                : [];
+            // Build parts array for current user message including images inline
+            const parts: ({ text: string } | { inlineData: { mimeType: string; data: string } })[] = [{ text: input }];
 
-            formattedMessages.push({
-                role: "user",
-                parts: [{ text: input }],
-            });
+            // Add images inline as base64 data to parts
+            for (const file of attachments) {
+                if (file.contentType?.startsWith('image/') && (file as any).base64) {
+                    parts.push({
+                        inlineData: {
+                            mimeType: file.contentType,
+                            data: (file as any).base64,
+                        }
+                    });
+                }
+            }
 
-            console.log("Formatted Data: ", formattedMessages);
+            formattedMessages.push({ role: 'user', parts });
 
-            const response = await sendMessageToGemini(formattedMessages);
-            console.log("Gemini response:", response);
-
+            const response = await sendMessageToGemini(formattedMessages)
+            console.log("LLLLLLLLLLLLLLLLLLLLL", response)
             const assistantMessage: Message = {
                 id: `${Date.now()}-assistant`,
                 role: 'assistant',
                 content: response,
-            };
-
-            console.log("111111111111111", assistantMessage)
-
-            setMessages((prev) => [...prev, assistantMessage]);
-
-            // Prepare chat messages array for Firestore saving (including latest user and assistant)
-            const chatMessagesForFirestore = [
-                {
-                    role: 'assistant',
-                    content: response,
-                },
-            ];
-            console.log("eeeeeeeeeeeeeeeeeee", chatMessagesForFirestore);
-
-            // Use first 40 chars of input as title
-            const title = input.slice(0, 40);
-
-            // Save session and messages to Firestore
-            const newSessionId = await saveChatSessionAndMessages({
-                email: user.email ?? "",
-                userId: user.uid,
-                title: input,                     // user input
-                assistantResponse: response,      // assistant response
-                sessionId: sessionId ?? undefined,
-            });
-
-            // Save sessionId in state for future appends
-            setSessionId(newSessionId);
-        } catch (error) {
-            console.error("Error sending message: ", error);
-
-        } finally {
-            setCustomStatus('ready');
-        }
-        // addDoc(collection(db, 'sessions', "c1mQ421fJ4LTPE6TSunl", 'messages'), {
-        //     role: 'user',
-        //     messages: response
-        // });
-
-        console.log("ccccccccccc", input, user.uid, user.email)
-    }, [
-        attachments,
-        // handleSubmit,
-        setAttachments,
-        setLocalStorageInput,
-        width,
-        chatId,
-        input,
-        user,
-        setMessages,
-        messages,
-        sendMessageToGemini,
-        sessionId,
-    ]);
-
-    useEffect(() => {
-        console.log("rrrrrrrrrrrrrrrrrrrrrr", sessionId)
-    }, [sessionId]);
-
-    const { isAtBottom, scrollToBottom } = useScrollToBottom();
-
-    useEffect(() => {
-        console.log("123123123", messages)
-    }, [messages])
-
-    useEffect(() => {
-        console.log("rrrrrrrrrrrrrrrr", status)
-    }, [status])
-
-    useEffect(() => {
-        console.log("IIIIIIIIIIIIIIIIIIIII", customStatus)
-    }, [customStatus])
-    return (
-        <div className={`relative w-full flex flex-col gap-4 ${className}`}>
-            <AnimatePresence>
-                {!isAtBottom && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                        className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
-                    >
-                        <Button
-                            data-testid="scroll-to-bottom-button"
-                            className="rounded-full border border-zinc-300"
-                            size="icon"
-                            variant="outline"
-                            onClick={(event) => {
-                                event.preventDefault();
-                                scrollToBottom();
-                            }}
-                        >
-                            <ArrowDown />
-                        </Button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            {messages.length === 0 &&
-                <SuggestedActions
-                    chatId={chatId}
-                    append={append}
-                    selectedVisibilityType={selectedVisibilityType}
-                    messages={messages}
-                    setMessages={setMessages}
-                    customStatus={customStatus}
-                    setCustomStatus={setCustomStatus}
-                    sessionId={sessionId}
-                    setSessionId={setSessionId}
-                />
             }
-            <Textarea
-                data-testid="multimodal-input"
-                ref={textareaRef}
-                placeholder="Send a message..."
-                value={input}
-                onChange={handleInput}
-                className={cx(
-                    'min-h-[24px] max-h-[240px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 border-t-6 border-gray-300 shadow-custom focus:ring-1 focus:ring-zinc-400 focus:outline-none',
-                    className,
-                )}
-                rows={2}
-                autoFocus
-                onKeyDown={(event) => {
-                    if (
-                        event.key === 'Enter' &&
-                        !event.shiftKey &&
-                        !event.nativeEvent.isComposing
-                    ) {
-                        event.preventDefault();
+            setMessages(prev => [...prev, assistantMessage])
 
-                        if (status !== 'ready') {
-                            toast.error('Please wait for the model to finish its response!');
-                        } else {
-                            submitForm();
-                        }
-                    }
-                }}
-            />
-            <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-                <AttachmentsButton
-                    fileInputRef={fileInputRef}
-                    status={status}
-                />
-            </div>
-            <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-                {customStatus === "submitted" ? (
-                    <StopButton setMessages={setMessages} stop={stop}></StopButton>
-                ) : (
-                    <SendButton
-                        input={input}
-                        submitForm={submitForm}
-                        uploadQueue={uploadQueue}
+            const title = input.slice(0, 40)
+            const newSessionId = await saveChatSessionAndMessages({
+                email: user.email,
+                userId: user.id,
+                title,
+                assistantResponse: response,
+                attachedFiles,
+                sessionId,
+            })
+            setSessionId(newSessionId)
+        } catch (err) {
+            console.error(err)
+            toast.error('Failed to submit message')
+        } finally {
+            setCustomStatus('ready')
+        }
+    }, [input, user, messages, chatId, attachments, setAttachments, handleSubmit])
+
+    const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const result = await uploadFileToSupabase(file);
+            setAttachments((prev) => [...prev, result]);
+            setAttachedFiles((prev) => [...prev, result]);
+            console.log("File uploaded!", result);
+        } catch (error) {
+            console.error("File upload failed:", error);
+        }
+    }
+
+    const { isAtBottom, scrollToBottom } = useScrollToBottom()
+
+    useEffect(() => {
+        console.log("vvvvvvvvvvvvvvv", attachments)
+    }, [attachments.length])
+    return (
+        <div>
+            <div className={`relative w-full flex flex-col gap-4 ${className}`}>
+                <AnimatePresence>
+                    {!isAtBottom && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                            className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
+                        >
+                            <Button
+                                data-testid="scroll-to-bottom-button"
+                                className="rounded-full border border-zinc-300"
+                                size="icon"
+                                variant="outline"
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    scrollToBottom();
+                                }}
+                            >
+                                <ArrowDown />
+                            </Button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {attachments.length === 0 && messages.length === 0 && (
+                    <SuggestedActions
+                        chatId={chatId}
+                        append={append}
+                        selectedVisibilityType={selectedVisibilityType}
+                        messages={messages}
+                        setMessages={setMessages}
+                        customStatus={customStatus}
+                        setCustomStatus={setCustomStatus}
+                        sessionId={sessionId}
+                        setSessionId={setSessionId}
                     />
                 )}
+
+                <input
+                    type="file"
+                    className="hidden"
+                    ref={fileInputRef}
+                    multiple
+                    onChange={handleFileChange}
+                />
+
+                {(attachedFiles.length > 0 || uploadQueue.length > 0) && (
+                    <div className="flex gap-2 overflow-x-scroll">
+                        {attachments.map(att => <PreviewAttachment key={att.url} attachment={att} />)}
+                        {uploadQueue.map(name => <PreviewAttachment key={name} attachment={{ url: '', name, contentType: '' }} isUploading />)}
+                    </div>
+                )}
+
+                <Textarea
+                    ref={textareaRef}
+                    placeholder="Send a message..."
+                    value={input}
+                    onChange={handleInput}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                            e.preventDefault()
+                            if (status !== 'ready') toast.error('Please wait for the model response')
+                            else submitForm()
+                        }
+                    }}
+                    rows={2}
+                    className={cx('min-h-[24px] max-h-[240px] resize-none rounded-2xl pb-10 bg-muted border-zinc-400', className)}
+                />
+
+                <div className="absolute bottom-0 left-0 p-2">
+                    <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+                </div>
+                <div className="absolute bottom-0 right-0 p-2">
+                    {customStatus === 'submitted' ? <StopButton setMessages={setMessages} stop={stop} /> : (
+                        <SendButton input={input} submitForm={submitForm} uploadQueue={uploadQueue} />
+                    )}
+                </div>
             </div>
+
+            {messages.length > 0 && (
+                <div className="flex justify-center">
+                    <p className="text-sm text-zinc-400">ChatGPT can make mistakes. Check important info.</p>
+                </div>
+            )}
         </div>
     )
 }
 
-export const MultimodalInput = memo(PureMultimodalInput, (prevProps, nextProps) => {
-    if (prevProps.input !== nextProps.input) return false;
-    if (prevProps.status !== nextProps.status) return false;
-    if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) return false;
-    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
-    if (prevProps.messages !== nextProps.messages) return false;
-    if (!equal(prevProps.sessionId, nextProps.sessionId)) return false;
-    return true;
-});
+export const MultimodalInput = memo(PureMultimodalInput, (prev, next) => {
+    return (
+        prev.input === next.input &&
+        prev.status === next.status &&
+        prev.selectedVisibilityType === next.selectedVisibilityType &&
+        prev.messages === next.messages &&
+        equal(prev.sessionId, next.sessionId)
+    )
+})

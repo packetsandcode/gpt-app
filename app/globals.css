@@ -36,7 +36,17 @@ html.transition-none * {
 }
 
 html {
-  transition: background 0.2s, color 0.2s;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.transition-none *,
+html.transition-none *::before,
+html.transition-none *::after {
+  transition: none !important;
+}
+
+textarea {
+  box-shadow: 0px -10px 10px rgba(0, 0, 0, 0.1); /* Top shadow with offset, blur, and opacity */
 }
 
 .light-scrollbar::-webkit-scrollbar {

@@ -92,7 +92,7 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
     };
 
     return (
-        <div className="w-100 flex justify-between border-b-1 border-zinc-200 dark:border-zinc-700">
+        <div className="w-100 flex justify-between border-b-1 border-zinc-200 dark:border-b-8 dark:border-zinc-700">
             <div className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
                 <SidebarToggle />
                 <GenerateChat

@@ -1,6 +1,13 @@
 # ChatGPT App (Next.js + Gemini APIs + Supabase/Firebase)
 ## Next.js
 
+### Tailwindcss
+```cmd
+npm install -D tailwindcss@3.3.2 postcss autoprefixer @tailwindcss/postcss
+
+npm exec tailwindcss3.3.2 init -p
+```
+To generate tailwind.config.js file, have to use tailwindcss version 3.3.2, not latest version like 4.1.10.
 
 ## Gemini
 - API Key which is created on Google Cloud Console where billing account is created

@@ -80,7 +80,7 @@ function PureChat({ id, initialMessages, initialChatModel, initialVisibilityType
     const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 
     return (
-        <div className="flex flex-col h-screen w-screen overflow-hidden">
+        <div className="flex flex-col h-screen w-screen overflow-hidden bg-blue-124">
             <ChatHeader
                 chatId={id}
                 selectedModelId={initialChatModel}

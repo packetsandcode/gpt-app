@@ -13,6 +13,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const [theme, setTheme] = useState<Theme>('light');
+    const [mounted, setMounted] = useState(false);
+
     const applyTheme = (theme: Theme) => {
         document.documentElement.classList.remove('light', 'dark');
         document.documentElement.classList.add(theme);
@@ -34,6 +36,15 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const initialTheme = stored || (prefersDark ? 'dark' : 'light');
         setTheme(initialTheme);
+        // document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+        if (initialTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+
+        }
+
+        setMounted(true);
         applyTheme(initialTheme);
     }, []);
 
@@ -41,9 +52,16 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         const nextTheme = theme === 'light' ? 'dark' : 'light';
         setTheme(nextTheme);
         localStorage.setItem('theme', nextTheme);
+        // document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+        if (nextTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
         applyTheme(nextTheme);
     };
 
+    if (!mounted) return null;
     return (
         <ThemeContext.Provider value={{ theme, toggleTheme }}>
             {children}

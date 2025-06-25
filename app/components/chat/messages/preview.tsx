@@ -57,117 +57,108 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                     <div
                         className={classname('flex flex-col gap-4 w-full')}
                     >
-                        {message.role === 'assistant' ? (
-                            <div
-                                data-testid={`message-attachments`}
-                                className='flex flex-row justify-end gap-2'
-                            >
-                                {message.attachments?.map((attachment) => (
+                        <div
+                            data-testid={`message-attachments`}
+                            className='flex flex-row justify-end gap-2'
+                        >
+                            {message.role === 'assistant' ? (
+                                message.attachments?.map((attachment) => (
                                     <PreviewAttachment
                                         key={attachment.url}
                                         attachment={attachment}
                                     />
-                                ))}
-                            </div>
-                        ) : (
-                            <div
-                                data-testid={`message-attachments`}
-                                className='flex flex-row justify-end gap-2'
-                            >
-                                {attachments?.map((attachment) => (
+                                ))
+                            ) : (
+                                attachments?.map((attachment) => (
                                     <PreviewAttachment
                                         key={attachment.url}
                                         attachment={attachment}
                                     />
-                                ))}
-                            </div>
-                        )}
-                        <div className={classname('flex flex-col gap-4 w-full')}>
-                            {message.parts?.map((part, index) => {
-                                const { type } = part;
-                                const key = `message-${message.id}-part-${index}`;
+                                ))
+                            )}
+                        </div>
 
-                                if (type === 'reasoning') {
+                        {message.parts?.map((part, index) => {
+                            const { type } = part;
+                            const key = `message-${message.id}-part-${index}`;
+
+                            if (type === 'reasoning') {
+                                return (
+                                    <MessageReasoning
+                                        key={key}
+                                        isLoading={isLoading}
+                                        reasoning={part.reasoning}
+                                    />
+                                );
+                            }
+
+                            if (type === 'text') {
+                                if (mode === 'view') {
                                     return (
-                                        <MessageReasoning
-                                            key={key}
-                                            isLoading={isLoading}
-                                            reasoning={part.reasoning}
-                                        />
-                                    );
-                                }
-
-                                if (type === 'text') {
-                                    if (mode === 'view') {
-                                        return (
-                                            <div key={key} className="flex flex-row gap-2 items-start w-full">
-                                                {!isReadonly && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                data-testid="message-edit-button"
-                                                                variant="ghost"
-                                                                className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
-                                                                onClick={() => {
-                                                                    setMode('edit');
-                                                                }}
-                                                            >
-                                                                <PencilEditIcon />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>Edit message</TooltipContent>
-                                                    </Tooltip>
-                                                )}
-                                                <div data-testid="message-content"
-                                                    className={classname('flex flex-col gap-4', {
-                                                        'bg-gray-200 text-black px-3 py-2 rounded-xl':
-                                                            message.role === 'user',
-                                                    })}>
-                                                    {(message as any).title && (
-                                                        <div className="text-lg text-right rounded-xl bg-gray-200 text-black px-3 py-2 self-end">
-                                                            <p>{(message as any).title ?? 'Untitled'}</p>
-                                                        </div>
-                                                    )}
-                                                    <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
-                                                </div>
-                                            </div>
-                                        )
-                                    }
-                                    if (mode === 'edit') {
-                                        
-                                    }
-                                }
-
-                                if (type === 'tool-invocation') {
-                                    const { toolInvocation } = part;
-                                    const { toolName, toolCallId, state } = toolInvocation;
-
-                                    const { args } = toolInvocation;
-                                    return (
-                                        <div key={toolCallId}
-                                            className={classname({
-                                                skeleton: ['getWeather'].includes(toolName),
-                                            })}>
-                                            {toolName === 'createDocument' && (
-                                                <DocumentPreview
-                                                    isReadonly={isReadonly}
-                                                    args={args}
-                                                />
+                                        <div key={key} className="flex flex-row gap-2 items-start w-full">
+                                            {!isReadonly && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            data-testid="message-edit-button"
+                                                            variant="ghost"
+                                                            className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
+                                                            onClick={() => {
+                                                                setMode('edit');
+                                                            }}
+                                                        >
+                                                            <PencilEditIcon />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Edit message</TooltipContent>
+                                                </Tooltip>
                                             )}
+                                            <div data-testid="message-content"
+                                                className={classname('flex flex-col gap-4', {
+                                                    'bg-gray-200 text-black px-3 py-2 rounded-xl':
+                                                        message.role === 'user',
+                                                })}>
+                                                {(message as any).title && (
+                                                    <div className="text-lg text-right rounded-xl bg-gray-200 text-black px-3 py-2 self-end">
+                                                        <p>{(message as any).title ?? 'Untitled'}</p>
+                                                    </div>
+                                                )}
+                                                <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
+                                            </div>
                                         </div>
                                     )
                                 }
-                            })}
-                            {!isReadonly && (
-                                <MessageActions
-                                    key={`action-${message.id}`}
-                                    chatId={chatId}
-                                    message={message}
-                                    vote={vote}
-                                    isLoading={isLoading}
-                                />
-                            )}
-                        </div>
+                            }
+
+                            if (type === 'tool-invocation') {
+                                const { toolInvocation } = part;
+                                const { toolName, toolCallId, state } = toolInvocation;
+
+                                const { args } = toolInvocation;
+                                return (
+                                    <div key={toolCallId}
+                                        className={classname({
+                                            skeleton: ['getWeather'].includes(toolName),
+                                        })}>
+                                        {toolName === 'createDocument' && (
+                                            <DocumentPreview
+                                                isReadonly={isReadonly}
+                                                args={args}
+                                            />
+                                        )}
+                                    </div>
+                                )
+                            }
+                        })}
+                        {!isReadonly && (
+                            <MessageActions
+                                key={`action-${message.id}`}
+                                chatId={chatId}
+                                message={message}
+                                vote={vote}
+                                isLoading={isLoading}
+                            />
+                        )}
                     </div>
                 </div>
             </motion.div>

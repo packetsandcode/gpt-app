@@ -58,6 +58,14 @@ const firebaseConfig = {
 };
 ```
 
+- When you show below error while handling Storage in Firebase
+Error: Access to XMLHttpRequest at 'https://firebasestorage.googleapis.com/v0/b/chatgptapp-f3eac.firebasestorage.app/o?name=uploads%2FMartinSingerResume.pdf' from origin 'http://localhost:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+uploadFileToFirebase.ts:8 
+
+1. install GoogleCloudSDKInstaller.exe
+2. gsutil cors set cors.json gs://your-storage-bucket-name
+* Storage → Files → Bucket Details
+
 - Build `Authentication` for managing users, `Firestore Database` for managing chat history, `Storage` for managing uploaded files
 
 To upgrade your project to use `Storage`, consider you're using gmail which has already Billing account as using Gemini.

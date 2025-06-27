@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { supabase } from "@/app/lib/supabaseClient";
 import "../index.css";
 import { useAuthGuard } from "@/app/hooks/useAuthGuard";
+import { useAuth } from "@/app/context/authContext";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -15,6 +16,8 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const { user, login } = useAuth();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,7 +44,8 @@ export default function LoginPage() {
             // Optionally store session token
             const session = data.session
             if (session?.access_token) {
-                localStorage.setItem('supabase_token', session.access_token)
+                // localStorage.setItem('supabase_token', session.access_token)
+                login(session.access_token);
             }
 
             router.push('/');

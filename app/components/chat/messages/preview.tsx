@@ -16,6 +16,7 @@ import { MessageReasoning } from "./message-reasoning";
 import { MessageActions } from "./message-actions";
 import type { Vote } from "@/app/lib/db/schema";
 import { PreviewAttachment } from "../../common/preview-attachment";
+import { TypingTextMarkdown } from "./typingText";
 
 function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReadonly, chatId, vote }: {
     message: UIMessage & { attachments?: Attachment[] };
@@ -123,7 +124,13 @@ function PurePreviewMessage({ message, requiresScrollPadding, isLoading, isReado
                                                         <p>{(message as any).title ?? 'Untitled'}</p>
                                                     </div>
                                                 )}
+                                                {/* {message.role === 'assistant' ? (
+                                                    <TypingTextMarkdown text={sanitizeText(part?.text || message?.content || '')} />
+                                                ) : (
+                                                    <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
+                                                )} */}
                                                 <Markdown>{sanitizeText(part?.text || message?.content || '')}</Markdown>
+
                                             </div>
                                         </div>
                                     )

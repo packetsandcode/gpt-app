@@ -23,6 +23,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "../../common/dropdown";
+import { useAuth } from "@/app/context/authContext";
 
 interface TokenPayload {
     email?: string;
@@ -41,6 +42,7 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
 }) {
     const router = useRouter();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const { user, login, logout } = useAuth();
     const [email, setEmail] = useState<string | null>(null);
     const [name, setName] = useState<string | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -83,7 +85,8 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
 
     const handleLogout = () => {
         localStorage.removeItem("supabase_token");
-        setIsLoggedIn(false);
+        // setIsLoggedIn(false);
+        logout();
         setEmail(null);
         setName(null);
         setMessages([]);
@@ -114,7 +117,7 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
             </div>
 
             <div className={classname("flex items-center p-4 relative", open ? "right-[240px]" : "right-0")} ref={dropdownRef}>
-                {isLoggedIn ? (
+                {user ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button

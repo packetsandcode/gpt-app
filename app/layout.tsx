@@ -7,6 +7,7 @@ import { SidebarPage } from "./components/chat/sidebar";
 import { useSidebar } from "./components/common/sidebar";
 import { SharedDataProvider } from "./context/sharedDataContext";
 import { ThemeProvider } from "./context/themeContext";
+import { AuthProvider } from "./context/authContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,16 +36,18 @@ export default function RootLayout({
       >
 
         <ThemeProvider>
-          <SidebarProvider>
-            <SharedDataProvider>
-              <div className="flex transition-all duration-300">
-                <SidebarPage />
-                <div className="flex-1 transition-all duration-300">
-                  {children}
+          <AuthProvider>
+            <SidebarProvider>
+              <SharedDataProvider>
+                <div className="flex transition-all duration-300">
+                  <SidebarPage />
+                  <div className="flex-1 transition-all duration-300">
+                    {children}
+                  </div>
                 </div>
-              </div>
-            </SharedDataProvider>
-          </SidebarProvider>
+              </SharedDataProvider>
+            </SidebarProvider>
+          </AuthProvider>
         </ThemeProvider>
         <script
           dangerouslySetInnerHTML={{

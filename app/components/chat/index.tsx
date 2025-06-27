@@ -17,7 +17,7 @@ import { ChatSDKError } from "@/app/lib/errors";
 import { toast } from "./toast";
 import { useAuthGuard } from "@/app/hooks/useAuthGuard";
 import { fetcher } from "../common/utils";
-import type { Vote } from "@/app/lib/db/schema";
+import { user, type Vote } from "@/app/lib/db/schema";
 import { useArtifactSelector } from "@/app/hooks/use-artifact";
 import { useSharedData } from "@/app/context/sharedDataContext";
 

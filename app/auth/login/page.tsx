@@ -40,7 +40,7 @@ export default function LoginPage() {
                 alert('Please verify your email before signing in.')
                 return
             }
-
+            console.log("BBBBBBBBBBBBBBBBB", data)
             // Optionally store session token
             const session = data.session
             if (session?.access_token) {

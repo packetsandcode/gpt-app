@@ -26,6 +26,11 @@ export default function SignUpPage() {
             const { data, error: signUpError } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    data: {
+                        name,
+                    },
+                },
             })
 
             if (signUpError) throw signUpError
@@ -34,14 +39,15 @@ export default function SignUpPage() {
             const userId = data.user?.id
             if (userId) {
                 const { error: profileError } = await supabase.from('profiles').insert([
-                    { id: userId, name },
+                    { id: userId, display_name: name },
                 ])
 
                 if (profileError) throw profileError
             }
 
             alert('Account created! Please check your email for verification.')
-            router.push('/auth/verify-email');
+            // router.push('/auth/verify-email');
+            router.push("/auth/login")
         } catch (err: any) {
             setError(err.message);
         } finally {

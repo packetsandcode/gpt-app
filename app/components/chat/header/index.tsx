@@ -56,8 +56,9 @@ function PureChatHeader({ chatId, selectedModelId, selectedVisibilityType, messa
         if (token) {
             try {
                 const decoded: TokenPayload = jwtDecode(token);
+                console.log("AAAAAAAAAAAAAAAAAAAA", decoded)
                 setEmail(decoded.email || null);
-                setName(decoded.name || null);
+                setName(decoded.user_metadata.name || null);
                 setIsLoggedIn(true);
             } catch (err) {
                 console.error("Invalid token", err);
